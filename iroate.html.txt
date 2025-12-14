@@ -1,0 +1,123 @@
+from IPython.display import HTML
+
+html_code_color_game = """
+<style>
+  body { font-family: 'Arial', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; margin: 0; background-color: #f0f0f0; }
+  #game-container-color { background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; width: 400px; }
+  #color-display { font-size: 2.2em; font-weight: bold; margin-bottom: 20px; color: #333; height: 50px; display: flex; align-items: center; justify-content: center; }
+  #color-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
+  .color-box { width: 100px; height: 100px; border: 3px solid #ccc; border-radius: 8px; cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease; }
+  .color-box:hover { transform: scale(1.05); border-color: #007bff; }
+  .correct-highlight {
+    border: 3px solid green !important; /* Make it green and important to override others */
+    box-shadow: 0 0 15px rgba(0, 128, 0, 0.8);
+  }
+  #message-color { margin-top: 25px; font-size: 1.3em; font-weight: bold; min-height: 30px; }
+  #score-color { font-size: 1.5em; margin-top: 15px; color: #555; }
+  #reset-button-color { background-color: #f44336; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 1em; cursor: pointer; margin-top: 20px; transition: background-color 0.3s ease; }
+  #reset-button-color:hover { background-color: #da190b; }
+</style>
+
+<div id="game-container-color">
+  <h1>色当てゲーム</h1>
+  <div id="color-display">RGB(?, ?, ?)</div>
+  <div id="color-options">
+    <div class="color-box" data-color=""></div>
+    <div class="color-box" data-color=""></div>
+    <div class="color-box" data-color=""></div>
+    <div class="color-box" data-color=""></div>
+    <div class="color-box" data-color=""></div>
+    <div class="color-box" data-color=""></div>
+  </div>
+  <div id="message-color"></div>
+  <div id="score-color">スコア: 0</div>
+  <button id="reset-button-color">ゲームリセット</button>
+</div>
+
+<script>
+  let scoreColorGame = 0;
+  let targetColor;
+  const numOptions = 6;
+
+  const colorDisplay = document.getElementById('color-display');
+  const colorOptionsContainer = document.getElementById('color-options');
+  const messageColor = document.getElementById('message-color');
+  const scoreColor = document.getElementById('score-color');
+  const resetButtonColor = document.getElementById('reset-button-color');
+
+  function getRandomColor() {
+    const r = Math.floor(Math.random() * 256);
+    const g = Math.floor(Math.random() * 256);
+    const b = Math.floor(Math.random() * 256);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  function generateColors() {
+    targetColor = getRandomColor();
+    colorDisplay.textContent = targetColor.toUpperCase(); // Display target RGB
+    messageColor.textContent = ''; // Clear previous message
+
+    const colors = [targetColor];
+    while (colors.length < numOptions) {
+      let newColor = getRandomColor();
+      // Ensure unique colors for options
+      if (!colors.includes(newColor)) {
+        colors.push(newColor);
+      }
+    }
+    // Shuffle colors to randomize target position
+    colors.sort(() => Math.random() - 0.5);
+
+    // Update color boxes
+    const colorBoxes = colorOptionsContainer.querySelectorAll('.color-box');
+    colorBoxes.forEach((box, index) => {
+      box.style.backgroundColor = colors[index];
+      box.dataset.color = colors[index]; // Store color for checking
+      box.onclick = handleColorGuess;
+      box.classList.remove('correct-highlight'); // Ensure no previous highlights
+    });
+  }
+
+  function handleColorGuess(event) {
+    const selectedBox = event.target; // Get the selected box element
+    const selectedColor = selectedBox.dataset.color;
+
+    const colorBoxes = colorOptionsContainer.querySelectorAll('.color-box'); // Get all boxes to clear highlights later
+
+    if (selectedColor === targetColor) {
+      scoreColorGame++;
+      messageColor.textContent = '正解！';
+      scoreColor.textContent = `スコア: ${scoreColorGame}`;
+      colorBoxes.forEach(box => box.classList.remove('correct-highlight')); // Clear any previous highlights
+      setTimeout(generateColors, 1000); // New round after 1 second
+    } else {
+      messageColor.textContent = `不正解！ 正解は ${targetColor.toUpperCase()} でした。`;
+      
+      // Find the correct box and highlight it
+      const correctBox = Array.from(colorBoxes).find(box => box.dataset.color === targetColor);
+      if (correctBox) {
+        correctBox.classList.add('correct-highlight');
+      }
+
+      setTimeout(() => {
+        colorBoxes.forEach(box => box.classList.remove('correct-highlight')); // Clear highlight
+        generateColors(); // New round after 2 seconds
+      }, 2000);
+    }
+  }
+
+  function resetGame() {
+    scoreColorGame = 0;
+    scoreColor.textContent = `スコor : ${scoreColorGame}`;
+    generateColors();
+  }
+
+  // Event listener for reset button
+  resetButtonColor.addEventListener('click', resetGame);
+
+  // Initial game setup
+  generateColors();
+</script>
+"""
+
+display(HTML(html_code_color_game))
