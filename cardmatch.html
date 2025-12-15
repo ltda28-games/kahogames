@@ -1,0 +1,235 @@
+from IPython.display import HTML
+
+html_memory_game = """
+<style>
+  body {
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+  }
+  #game-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    text-align: center;
+    display: flex; /* Flexbox for centering canvas within container */
+    flex-direction: column;
+    align-items: center;
+  }
+  #gameCanvas {
+    background-color: #ADD8E6; /* Light blue background for cards */
+    border: 2px solid #555;
+    display: block;
+    margin-top: 10px;
+  }
+  #gameStatusMessage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2em;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    border-radius: 10px;
+    display: none;
+    z-index: 100;
+  }
+  #restartButton {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.2em;
+    cursor: pointer;
+    margin-top: 20px;
+    display: none; /* Hidden by default */
+    z-index: 101;
+    position: relative; /* Position relative to game-container */
+  }
+  #restartButton:hover {
+    background-color: #45a049;
+  }
+</style>
+
+<div id="game-container">
+  <h1>記憶力カードマッチゲーム</h1>
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <div id="gameStatusMessage"></div>
+  <button id="restartButton">もう一度プレイ</button>
+</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const gameStatusMessageDiv = document.getElementById('gameStatusMessage');
+  const restartButton = document.getElementById('restartButton');
+
+  const CARD_WIDTH = 80;
+  const CARD_HEIGHT = 80;
+  const CARD_PADDING = 10;
+  const GRID_COLS = 4;
+  const GRID_ROWS = 4; // 4x4 grid for 8 pairs of cards
+
+  const CARD_BACK_COLOR = '#007bff';
+  const CARD_FACE_COLOR = '#f8f9fa';
+  const TEXT_COLOR = '#343a40';
+
+  let cards = [];
+  let flippedCards = [];
+  let matchedPairs = 0;
+  let score = 0;
+  let canFlip = true; // Prevents flipping more than 2 cards at once
+
+  // Using simple characters/emojis for card faces
+  const cardFaces = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+  function initializeGame() {
+    score = 0;
+    matchedPairs = 0;
+    flippedCards = [];
+    canFlip = true;
+    gameStatusMessageDiv.style.display = 'none';
+    restartButton.style.display = 'none';
+
+    // Create card pairs
+    let initialCards = [...cardFaces, ...cardFaces];
+    initialCards = shuffleArray(initialCards);
+
+    cards = [];
+    for (let i = 0; i < GRID_ROWS; i++) {
+      for (let j = 0; j < GRID_COLS; j++) {
+        const cardIndex = i * GRID_COLS + j;
+        cards.push({
+          x: j * (CARD_WIDTH + CARD_PADDING) + CARD_PADDING,
+          y: i * (CARD_HEIGHT + CARD_PADDING) + CARD_PADDING,
+          width: CARD_WIDTH,
+          height: CARD_HEIGHT,
+          face: initialCards[cardIndex],
+          isFlipped: false,
+          isMatched: false
+        });
+      }
+    }
+    drawCards();
+  }
+
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+    }
+    return array;
+  }
+
+  function drawCards() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const card of cards) {
+      ctx.beginPath();
+      ctx.rect(card.x, card.y, card.width, card.height);
+      ctx.fillStyle = card.isFlipped || card.isMatched ? CARD_FACE_COLOR : CARD_BACK_COLOR;
+      ctx.fill();
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.closePath();
+
+      if (card.isFlipped || card.isMatched) {
+        ctx.fillStyle = TEXT_COLOR;
+        ctx.font = '30px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(card.face, card.x + card.width / 2, card.y + card.height / 2);
+      }
+    }
+    drawScore();
+  }
+
+  function drawScore() {
+    ctx.font = '16px Arial';
+    ctx.fillStyle = TEXT_COLOR;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Matched: ' + matchedPairs + ' / ' + cardFaces.length, 5, canvas.height - 25);
+    ctx.fillText('Score: ' + score, 5, canvas.height - 5);
+  }
+
+  canvas.addEventListener('click', (event) => {
+    if (!canFlip) return;
+
+    const mouseX = event.offsetX;
+    const mouseY = event.offsetY;
+
+    for (const card of cards) {
+      if (mouseX > card.x && mouseX < card.x + card.width &&
+          mouseY > card.y && mouseY < card.y + card.height &&
+          !card.isFlipped && !card.isMatched) {
+
+        card.isFlipped = true;
+        flippedCards.push(card);
+        drawCards();
+
+        if (flippedCards.length === 2) {
+          canFlip = false; // Prevent further flips
+          checkForMatch();
+        }
+        return; // Only one card can be clicked at a time
+      }
+    }
+  });
+
+  function checkForMatch() {
+    const [card1, card2] = flippedCards;
+
+    if (card1.face === card2.face) {
+      card1.isMatched = true;
+      card2.isMatched = true;
+      matchedPairs++;
+      score += 100; // Add score for a match
+      flippedCards = [];
+      canFlip = true;
+
+      if (matchedPairs === cardFaces.length) {
+        endGame(true);
+      }
+    } else {
+      // No match, flip them back after a delay
+      setTimeout(() => {
+        card1.isFlipped = false;
+        card2.isFlipped = false;
+        score = Math.max(0, score - 20); // Deduct score for wrong guess
+        flippedCards = [];
+        canFlip = true;
+        drawCards();
+      }, 1000); // Cards stay flipped for 1 second
+    }
+    drawCards();
+  }
+
+  function endGame(win) {
+    canFlip = false;
+    if (win) {
+      gameStatusMessageDiv.textContent = 'ゲームクリア！おめでとうございます！スコア: ' + score;
+    } else {
+      // In memory game, typically win or just keep playing until matched. No explicit lose condition.
+      // But we can add a 'moves' or 'time' limit later if needed.
+      gameStatusMessageDiv.textContent = 'ゲーム終了！';
+    }
+    gameStatusMessageDiv.style.display = 'block';
+    restartButton.style.display = 'block';
+  }
+
+  restartButton.addEventListener('click', initializeGame);
+
+  // Initial game setup
+  initializeGame();
+</script>
+"""
+
+display(HTML(html_memory_game))
